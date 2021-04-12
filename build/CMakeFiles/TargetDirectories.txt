@@ -1,0 +1,7 @@
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/install/strip.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/install/local.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/install.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/list_install_components.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/rebuild_cache.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/edit_cache.dir
+/home/ana/Programs/Daqana_Code/build/CMakeFiles/daqana_v6f4_1.dir

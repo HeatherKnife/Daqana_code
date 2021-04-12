@@ -1,0 +1,4 @@
+cd build 
+cmake ../daqana_v6f1/ 
+make 
+sudo make install 
