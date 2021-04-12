@@ -48,7 +48,7 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ana/Programs/Daqana_Code/daqana_v6f4
+CMAKE_SOURCE_DIR = /home/ana/Programs/Daqana_Code/daqana_v6f4_1
 
 # The top-level build directory on which CMake was run.
 CMAKE_BINARY_DIR = /home/ana/Programs/Daqana_Code/build
@@ -67,6 +67,18 @@ install/strip/fast: preinstall/fast
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
 	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
 .PHONY : install/strip/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
 
 # Special rule for the target install
 install: preinstall
@@ -112,18 +124,6 @@ edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
 
-# Special rule for the target install/local
-install/local: preinstall
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
-	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
-.PHONY : install/local
-
-# Special rule for the target install/local
-install/local/fast: preinstall/fast
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
-	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
-.PHONY : install/local/fast
-
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/ana/Programs/Daqana_Code/build/CMakeFiles /home/ana/Programs/Daqana_Code/build/CMakeFiles/progress.marks
@@ -157,47 +157,47 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named daqana_v6f4
+# Target rules for targets named daqana_v6f4_1
 
 # Build rule for target.
-daqana_v6f4: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 daqana_v6f4
-.PHONY : daqana_v6f4
+daqana_v6f4_1: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 daqana_v6f4_1
+.PHONY : daqana_v6f4_1
 
 # fast build rule for target.
-daqana_v6f4/fast:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/build
-.PHONY : daqana_v6f4/fast
+daqana_v6f4_1/fast:
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/build
+.PHONY : daqana_v6f4_1/fast
 
 # target to build an object file
 RootFileManager.o:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/RootFileManager.o
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/RootFileManager.o
 .PHONY : RootFileManager.o
 
 # target to preprocess a source file
 RootFileManager.i:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/RootFileManager.i
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/RootFileManager.i
 .PHONY : RootFileManager.i
 
 # target to generate assembly for a file
 RootFileManager.s:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/RootFileManager.s
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/RootFileManager.s
 .PHONY : RootFileManager.s
 
 # target to build an object file
-daqana_v6f4.o:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/daqana_v6f4.o
-.PHONY : daqana_v6f4.o
+daqana_v6f4_1.o:
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/daqana_v6f4_1.o
+.PHONY : daqana_v6f4_1.o
 
 # target to preprocess a source file
-daqana_v6f4.i:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/daqana_v6f4.i
-.PHONY : daqana_v6f4.i
+daqana_v6f4_1.i:
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/daqana_v6f4_1.i
+.PHONY : daqana_v6f4_1.i
 
 # target to generate assembly for a file
-daqana_v6f4.s:
-	$(MAKE) -f CMakeFiles/daqana_v6f4.dir/build.make CMakeFiles/daqana_v6f4.dir/daqana_v6f4.s
-.PHONY : daqana_v6f4.s
+daqana_v6f4_1.s:
+	$(MAKE) -f CMakeFiles/daqana_v6f4_1.dir/build.make CMakeFiles/daqana_v6f4_1.dir/daqana_v6f4_1.s
+.PHONY : daqana_v6f4_1.s
 
 # Help Target
 help:
@@ -206,18 +206,18 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... install/strip"
+	@echo "... install/local"
 	@echo "... install"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
-	@echo "... install/local"
-	@echo "... daqana_v6f4"
+	@echo "... daqana_v6f4_1"
 	@echo "... RootFileManager.o"
 	@echo "... RootFileManager.i"
 	@echo "... RootFileManager.s"
-	@echo "... daqana_v6f4.o"
-	@echo "... daqana_v6f4.i"
-	@echo "... daqana_v6f4.s"
+	@echo "... daqana_v6f4_1.o"
+	@echo "... daqana_v6f4_1.i"
+	@echo "... daqana_v6f4_1.s"
 .PHONY : help
 
 

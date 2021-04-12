@@ -23,6 +23,9 @@
 #include <vector>
 #include <snappy.h>
 #include "RootFileManager.hh"
+#include <algorithm>
+#include <iterator>
+using namespace std;
 
 //#define VERSION 6
 //const uint32_t header_size[VERSION+1] = {0,29,30,30,38,46,50};
@@ -207,8 +210,9 @@ fftw_plan fftw_backward_plan;
 void    read_header( std::ifstream& );
 bool    get_active_ch( uint8_t ch ) { return active_ch & ch_mask[ch]; }
 bool    get_active_tr( uint8_t ch ) { return active_tr & ch_mask[ch]; }
-template<class A> double baseline( const A*,  double*);
+template<class A> double baseline( const A* );
 template<class A> double baseline( const A*, uint32_t, uint32_t );
+template<class A> double offset_correction( const A*, double*, uint32_t, uint32_t );
 template<class A> double baseline_var( const A*, double );
 template<class A> double check_pileup( const A*, double, std::vector< std::pair<double,double> >&, int32_t polarity );
 template<class A> double get_fwhm( const A*, uint32_t, double );
@@ -230,12 +234,11 @@ double linear_interpolation( double, double, double, double, double );
 double quadratic_extremum( double, double, double, double& );
 
 // void    handle_record( uint32_t, int16_t**, double**, double** );
-void    handle_record( uint32_t, int16_t**, double**, double**, double **, double **); // DT 2019/10/25. To compare two ways of doing CFD.  
+void    handle_record( uint32_t, int16_t**, double**, double**, double **, double** ); // DT 2019/10/25. To compare two ways of doing CFD.  
 
 template<class A> void store(    const A*, const TString );
                   void store(    const fftw_complex*, const TString );
 template<class A> void rectangle_smooth( const A*, double*, uint32_t );
-template<class A> void correction_to_zero( const A*, double*, double );
 template<class A> void triangle_smooth( const A*, double*, uint32_t );
 template<class A> void savitzky_golay_quad_smooth( const A*, double*, uint32_t );
 template<class A> void subtract( const A*, const double*, double* );
@@ -264,7 +267,7 @@ handle h_ts;
 handle h_pileup;
 handle h_dist;
 std::map< int, handle > h_time;
-std::map< int, handle > h_time_cfd;
+//std::map< int, handle > h_time_cfd;
 std::map< int, handle > h_time_cfd_raw; // DT 2019/10/25. To compare two ways of doing CFD.
 std::map< int, handle > h_time_cfd_smooth;  // DT 2019/10/25. To compare two ways of doing CFD.
 std::map< int, handle > h_fwhm;
@@ -288,7 +291,7 @@ int main(int argc, char** argv)
   /* Open the output waveform file */
   TString fname(argv[argc-1]);
   RootFileManager* rm = RootFileManager::GetInstance();
- // std::cout << "Writing to file: " << fname << std::endl;
+  std::cout << "Writing to file: " << fname << std::endl;
   rm->OpenFile( fname, "RECREATE" );
   rm->AddFolder("Waveforms");
   handle h_dtree = rm->NewTree("EventData");
@@ -300,10 +303,10 @@ int main(int argc, char** argv)
   int16_t* raw[4];
   static char* temporary  = new char[snappy::MaxCompressedLength(smp_per_rec*sizeof(int16_t))];  // temporary buffer if reading compressed data
   double* smooth[4];
-  double* bipolar[4]; // DT 2019/10/25
+//  double* bipolar[4]; // DT 2019/10/25
   double* bipolar_raw[4]; // DT 2019/10/25 To compare two ways of doing CFD.
   double* bipolar_smooth[4];  // DT 2019/10/25 To compare two ways of doing CFD.
-  //double* corrected[4];
+  double* corrected_smooth[4];
 
   h_ts     = rm->NewInt64( h_dtree, "Timestamp" );
   h_pileup = rm->NewFloat( h_dtree, "Pileup" );
@@ -313,20 +316,20 @@ int main(int argc, char** argv)
   ch_name[1] = "B";
   ch_name[2] = "C";
   ch_name[3] = "D";
- // std::cout << "max_stored_events: " << max_stored_events << std::endl;
+  std::cout << "max_stored_events: " << max_stored_events << std::endl;
 
   for( int ch = 0; ch < 4; ++ch )
     if( get_active_ch(ch) )
     {
       raw[ch]       = new int16_t[smp_per_rec];
       smooth[ch]    = new double[smp_per_rec];
-      bipolar[ch]    = new double[smp_per_rec]; 
+
+//    bipolar[ch]    = new double[smp_per_rec]; 
       bipolar_raw[ch]    = new double[smp_per_rec];  // DT 2019/10/25. To compare two ways of doing CFD.
       bipolar_smooth[ch]    = new double[smp_per_rec];  // DT 2019/10/25. To compare two ways of doing CFD.
-  //   corrected[ch]    = new double[smp_per_rec];
+      corrected_smooth[ch]    = new double[smp_per_rec]; 
 
       h_time[ch]    = rm->NewFloat( h_dtree, "Time_"         + ch_name[ch] );
-//      h_time_cfd[ch]    = rm->NewFloat( h_dtree, "Time_CFD_"         + ch_name[ch] );
       h_time_cfd_raw[ch]    = rm->NewFloat( h_dtree, "Time_CFD_raw_"         + ch_name[ch] ); // DT 2019/10/25. To compare two ways of doing CFD.
       h_time_cfd_smooth[ch]    = rm->NewFloat( h_dtree, "Time_CFD_smooth_"         + ch_name[ch] ); // DT 2019/10/25. To compare two ways of doing CFD.
       h_fwhm[ch]    = rm->NewFloat( h_dtree, "FWHM_"         + ch_name[ch] );
@@ -345,7 +348,7 @@ int main(int argc, char** argv)
   
   for( int file = 0; file < argc-2; ++file )
   {
-  //  std::cout << "Reading file: " << argv[file+1] << std::endl;
+    std::cout << "Reading file: " << argv[file+1] << std::endl;
     std::ifstream input(argv[file+1], std::ifstream::binary);
     input.ignore(header_size[file_format_version]); // Skip header
 
@@ -388,7 +391,7 @@ int main(int argc, char** argv)
           /* Handle everything that concerns only this record */
           try{
 //            handle_record(ch,raw,smooth,bipolar);
-  handle_record(ch, raw, smooth, bipolar, bipolar_raw, bipolar_smooth);// DT 2019/10/25. To compare two ways of doing CFD.  
+  handle_record(ch,raw,smooth,bipolar_raw,bipolar_smooth, corrected_smooth);// DT 2019/10/25. To compare two ways of doing CFD.  
         }
           catch( const char* e )
           {
@@ -417,10 +420,10 @@ int main(int argc, char** argv)
               name += ch;
               store( raw[ch], "raw_"+name );
               store( smooth[ch], "smooth_"+name );
-              store( bipolar[ch], "bipolar_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
+           //   store( bipolar[ch], "bipolar_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_raw[ch], "bipolar_raw_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_smooth[ch], "bipolar_smooth_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
-            //  store( corrected[ch], "corrected_"+name );
+              store( corrected_smooth[ch], "corrected_smooth"+name );
             }
           ++n_stored;
         }
@@ -431,13 +434,11 @@ int main(int argc, char** argv)
 
   /* Close waveform file file */
   rm->CloseFile();
-//  std::cout << "Analysis done!" << std::endl << std::endl;
+  std::cout << "Analysis done!" << std::endl << std::endl;
 }
 
-
-
 //void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar)
-void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar, double** bipolar_raw, double** bipolar_smooth) // DT 2019/10/25. To compare two ways of doing CFD.  
+void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar_raw, double** bipolar_smooth, double** corrected_smooth) // DT 2019/10/25. To compare two ways of doing CFD.  
 {
   RootFileManager* rm = RootFileManager::GetInstance();
 
@@ -460,7 +461,6 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
   // Energy signals, peak height is important
   if(ch<4)
     {
-
     rectangle_smooth( raw[ch], smooth[ch], 11 );
     savitzky_golay_quad_smooth( smooth[ch], temp, 11 );
     savitzky_golay_quad_smooth( temp, smooth[ch], 11 );
@@ -477,20 +477,28 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
   double pos_max = 0;
   double max = get_max(smooth[ch], pos_max, pre_tr_smp/2, smp_per_rec);
   double bl_chi2 = fit_line( raw[ch], bl_k, bl_m, 0, 3*pre_tr_smp/10);
-  double bl_pre  = baseline( smooth[ch], 0, 3*pre_tr_smp/10);  //First average for the beggining of the somooth pulse
   double bl_preRaw  = baseline( raw[ch], 0, 3*pre_tr_smp/10);  //First average for the beggining of the raw pulse
+  
+  /* -----------------Last baseline calculation for pulses with undershoot---------------- */
+  
+  double bl_pre  = baseline( smooth[ch], 0, 3*pre_tr_smp/10);  //First average for the beggining of the somooth pulse
   double start_bl_post = smp_per_rec - 3*pre_tr_smp/10;
-  double bl_post = baseline(smooth[ch], start_bl_post, smp_per_rec - start_bl_post);
-  //double bl_post = baseline(smooth[ch], smp_per_rec-pre_tr_smp/2, pre_tr_smp/2 - 10); //Second average for the end of the smooth pulse
-  //double pulse_h_end = baseline(smooth[ch], smp_per_rec - pre_tr_smp/2, sup_limit_PH - (smp_per_rec - pre_tr_smp/2)); // Third average for the end of the pulse minus 10 channels
+  double bl_post = baseline(smooth[ch], start_bl_post, smp_per_rec - start_bl_post); // bl post with average in the end to skip the undershoot.
+
   double pos;
   double val;
   double time;
-  double time_cfd;
+//  double time_cfd;
   double time_cfd_raw; // DT 2019/10/25. To compare two ways of doing CFD.
   double time_cfd_smooth;  // DT 2019/10/25. To compare two ways of doing CFD.
 
- // correction_to_zero(raw[ch], corrected[ch], bl_pre);
+  offset_correction( smooth[ch], corrected_smooth[ch], 0, 3*pre_tr_smp/10);
+
+  auto itr = find( smooth[0], smooth[0] + smp_per_rec, max );
+
+//  if (itr != end(*smooth[0])) {
+  std::cout << "The time " << distance(smooth[0], itr) << std::endl;
+//  }
 
   static uint32_t pileup = 0;
 
@@ -498,14 +506,13 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
 
 if(ch==0) // Silicon signals after PreAmp. Positive signals.
   {
+
   val = get_max( smooth[ch], pos);
 
-//std::cout << "I am here" << std::endl;
-  
- time = left_threshold( smooth[ch], pos, bl_pre + 0.3 * (val - bl_pre) );
- time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 20., -1800., 1);  // DT 2019/10/25; positive signal -> pol=1
- time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 20., -1300., 1); // DT 2019/10/25. To compare two ways of doing CFD.
- time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 20., -1300., 1);  // DT 2019/10/25. To compare two ways of doing CFD.
+  time = left_threshold( smooth[ch], pos, bl_pre + 0.3 * (val - bl_pre) ); 
+//  time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 20., -1800., 1);  // DT 2019/10/25; positive signal -> pol=1
+  time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 20., -1300., 1); // DT 2019/10/25. To compare two ways of doing CFD.
+  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 20., -1300., 1);  // DT 2019/10/25. To compare two ways of doing CFD.
 
 
 //    time = left_threshold( smooth[ch], pos, 0.5 * val );
@@ -521,22 +528,17 @@ if(ch==0) // Silicon signals after PreAmp. Positive signals.
 else if(ch==1||ch==2||ch==3) // MCP signals. Negative signals.
   {
   val = get_min( smooth[ch], pos);
-  time = left_threshold( raw[ch], pos, bl_pre + 0.2 * (val - bl_pre) );
-  time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25; negative signal -> pol=0
-
-//  time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.2, 300.,  -1800., 0);   // DT 2019/10/25. To compare two ways of doing CFD.
-//  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.1, 300.,  -1800., 0);  // DT 2019/10/25. To compare two ways of doing CFD.
-  time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 1.,  -1800., 0);  
-  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 1.,  -1800., 0);  
- 
-//  std::cout << "time_cfd_smooth" << time_cfd_smooth << std::endl;
+  time = left_threshold( smooth[ch], pos, bl_pre + 0.3 * (val - bl_pre) );
+//  time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25; negative signal -> pol=0
+  time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 1.,  -1800., 0);   // DT 2019/10/25. To compare two ways of doing CFD.
+  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25. To compare two ways of doing CFD.
 
 
 //    val = get_extremum_polyfit( raw[ch], pos, 
 //        std::max( 0, int32_t(pos / ns_per_smp + 0.5) - 200 ), 
 //        std::min( int32_t(smp_per_rec), int32_t(pos / ns_per_smp + 0.5) + 200 ) );
 
-//  std::cout << "ch: " << ch << " min= " << val << " pos= " << pos << " time= " << time << std::endl; 
+//std::cout << "ch: " << ch << " min= " << val << " pos= " << pos << " time= " << time << std::endl; 
   }
 
 
@@ -571,7 +573,7 @@ double chargeRaw      = integratePeak(   raw[ch], int32_t(leftLimit / ns_per_smp
 
   rm->FillFloat( h_time[ch],    time );
 
-  rm->FillFloat( h_time_cfd[ch],    time_cfd );   // DT 2019/10/25;
+//  rm->FillFloat( h_time_cfd[ch],    time_cfd );   // DT 2019/10/25;
   rm->FillFloat( h_time_cfd_raw[ch],    time_cfd_raw );   // DT 2019/10/25. To compare two ways of doing CFD.
   rm->FillFloat( h_time_cfd_smooth[ch],    time_cfd_smooth );   // DT 2019/10/25. To compare two ways of doing CFD.
 
@@ -648,12 +650,8 @@ void read_header( std::ifstream& input )
   std::cout << "*** END HEADER ***" << std::endl;
 }
 
-template<class A> double baseline( const A* wave,  double* out )
+template<class A> double baseline( const A* wave )
 {
-  for( unsigned int i = 0; i < smp_per_rec - 1; ++i )
-    {
-      	out[i] = wave[i] - baseline( wave, 0, pre_tr_smp);
-    }
   return baseline( wave, 0, pre_tr_smp/2 );
 }
 
@@ -670,6 +668,27 @@ template<class A> double baseline( const A* wave, uint32_t start_smp, uint32_t n
   bline /= n_smp;
   return bline;
 }
+
+
+template<class A> double offset_correction( const A* wave, double* out, uint32_t start_smp, uint32_t n_smp )
+{
+  double bline = 0;
+  double end_smp = start_smp + n_smp;
+  for( uint32_t smp = 0; smp < n_smp; ++smp )
+  {
+    bline += wave[start_smp + smp];
+  } 
+
+  bline /= n_smp;
+
+  for ( uint32_t i = 0; i < smp_per_rec; ++i )
+  {
+    out[i] = wave[i] - bline;
+  }
+
+  return bline;
+}
+
 
 template<class A> double baseline_var( const A* wave, double bl )
 {
@@ -746,13 +765,18 @@ template<class A> double get_fwhm( const A* wave, uint32_t peak_pos, double zero
 template<class A> double left_threshold( const A* wave, uint32_t pos, double limit )
 {
   double value = wave[pos];
-  //std::cout << "limit " << limit << std::endl;
-  //std::cout << "value " << value << std::endl;
-  int32_t i;
-  for( i = pos; i >= 0; --i )
+
+  std::cout << "pos " << pos << " limit " << limit << std::endl;
+
+  for( int32_t i = pos; --i; )
+  {
+    std::cout << "value " << value << " limit " << limit << " wave[i] " << wave[i] << " i-1 " << i-1 << " i " << i << " i+1 " << i+1 << wave[i+1] << std::endl;
     if( ( value > limit && wave[i] < limit ) || ( value < limit && wave[i] > limit ) )
-    //	std::cout << "wave pos " << wave[i] << std::endl;
+    {
+      std::cout << "linear_interpolation " << linear_interpolation( i, i+1, wave[i], wave[i+1], limit ) << std::endl;
       return linear_interpolation( i, i+1, wave[i], wave[i+1], limit );
+    }
+  }
   return 0;
 }
 
@@ -857,13 +881,6 @@ template<class A> double threshold( const A* wave, double limit )
 double linear_interpolation( double x1, double x2, double y1, double y2, double y )
 {
   double delta_x = ( y - y1 ) * ( x2 - x1 ) / ( y2 - y1 );
- /* std::cout << "delta x " << delta_x << std::endl;
-  std::cout << "y " << y << std::endl;
-  std::cout << "y1 " << y1 << std::endl;
-  std::cout << "y2 " << y2 << std::endl;
-  std::cout << "x1 " << x1 << std::endl;
-  std::cout << "x2 " << x2 << std::endl;
-  std::cout << " " << std::endl;*/
   return x1 + delta_x;
 }
 
@@ -1065,109 +1082,88 @@ fftw_complex* bandfilter( fftw_complex* freq, double low_freq, double high_freq 
 }
 
 
-template<class A> void correction_to_zero( const A* in, double* out, double bl_pre)
-{
-  for( unsigned int i = 0; i < smp_per_rec - 1; ++i )
-  {
-  	out[i] = in[i] - bl_pre;
-  }
-}
-
-// time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 1.,  -1800., 0);   // DT 2019/10/25. To compare two ways of doing CFD.
-//  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25. To compare two ways of doing CFD.
-
-
-
-
 // DT 2019/10/25. CFD function as written by BB;
 // 
 // *************
 //
 // CFD function for both positive (pol = 1) and negative (pol = 0) signals
 template<class A> double CFD(const A* wave, double* out, double frac, uint32_t delay, double Threshold, int pol)
-//  time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 1.,  -1800., 0);  
-
  {
-  double trigger = 0;
-  double pos = 0;
+  double trigger=0;
+  double pos=0;
   double val_max;
   double val_min;
 
-  if (pol == 1) {
+  if (pol==1) {
 
     val_max =  get_max( wave, pos );
- //   std::cout << "val max " << val_max << std::endl;
+  //  std::cout<< val_max << std::endl;
   //  if( val_max < Threshold) {
   //        std::cout<< ": CFD below threshold"<< std::endl;
   //    return 2;       }
-
   // Bipolar pulse 
-    for( uint32_t i = 0; i < smp_per_rec; ++i ) {
-    if( i <= delay ) { 
-      out[i] =  -frac*(wave[i]);
+
+    for(uint32_t i=0;i<smp_per_rec;i++) {
+    if( i <= delay ) {
+      out[i] =  (-1)*frac*(wave[i]);
                }
     else {
-      out[i] = wave[i-delay] - frac*wave[i];
+      out[i] = wave[i-delay] + (-1)*frac*wave[i] ;
       } 
-   // std::cout << "out[i] " << out[i] << std::endl;
     }
 
   // Find zero crossing
-    uint32_t t = delay;
- //   std::cout << "t " << t << std::endl;
-    while( ( out[t] < Threshold ) && ( t < smp_per_rec ) ) {
-      val_max = 0.;
-      t++;
- //     std::cout << "t aumentado " << t << std::endl;
-  		}
+    uint32_t t=delay;
+    while( (out[t]<Threshold) && (t< smp_per_rec ) ) {
+      val_max=0.;
+      t++;                                            }
 
-    for ( uint32_t i = 0; i < smp_per_rec; i++) {
+    for (uint32_t i=0; i<smp_per_rec; i++) {
       if (val_max  < out[i]) {
-       //std::cout<< "wl[" << i << "] = " << w1[i]<< std::endl;
+         //std::cout<< "wl[" << i << "] = " << w1[i]<< std::endl;
         val_max = out[i];
         t = i;
-        //std::cout<< t << " T first if" << std::endl;   
+       //    std::cout<< t << " T first if" << std::endl;   
       }
-       // std::cout<< t << " t del max " << std::endl;
-    //    std::cout<< " w1[" << i << "] = " << w1[i] << std::endl;    
+  //    std::cout<< t << " t del max " << std::endl;
+  //    std::cout<< " w1[" << i << "] = " << w1[i] << std::endl;    
     }
-    while( (out[t] > 0.) && (t > delay) )  {
+    while( (out[t]>0.) && (t>delay) )  {
       trigger = 0.;
-      if(out[t + 1] == out[t]) {
-        trigger = 0.5*(t + (t + 1));
+      if(out[t+1] == out[t]) {
+        trigger = 0.5*(t + (t+1));
         //std::cout<< "trigger first case:  " << trigger  <<std::endl;   
          }
       else {
-        trigger = t - (t + 1 - t) * out[t] / (out[t + 1] - out[t]);            
-         // trigger = linear_interpolation (t-1, t, w1[t-1], w1[t], w1[t+1]); } 
+        trigger= t - ( t+1 -t )* out[t]/ (out[t+1] - out[t]);            
+         // trigger = linear_interpolation (t-1, t, w1[t-1], w1[t], w1[t+1]); }
         }
       t = t-1;                 
     }
     }
-
-    //  time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 1.,  -1800., 0);  
-  else if (pol == 0) {
-      val_min =  get_min(wave, pos);
-  //  std::cout << "val min " << val_min << std::endl;
+  else if (pol==0) {
+      val_min =  get_min( wave, pos );
+  //  std::cout<< val_max << std::endl;
   //  if( val_min > Threshold) {
   //        std::cout<< ": CFD below threshold"<< std::endl;
   //    return -2;       }
   // Bipolar pulse 
-    for(uint32_t i = 0; i < smp_per_rec; i++) {
-    	if( i <= delay ) {
-      	out[i] =  (-1)*frac*(wave[i]);
-    	    			 }
-    	else {
-      	out[i] = wave[i-delay] + (-1)*frac*wave[i] ;
-     		 } 
-    	}
+    for(uint32_t i=0;i<smp_per_rec;i++) {
+    if( i <= delay ) {
+      
+      out[i] =  (-1)*frac*(wave[i]);
+           }
+    else {
+      out[i] = wave[i-delay] + (-1)*frac*wave[i] ;
+      } 
+    }
   // Find zero crossing
-    uint32_t t = delay;
-    while( (out[t] > Threshold) && (t < smp_per_rec) ) {
-      val_min = 0.;
+    uint32_t t=delay;
+    while( (out[t] > Threshold) && (t < smp_per_rec ) ) {
+      val_min=0.;
       t++;                                            }
 
-    for (uint32_t i = 0; i < smp_per_rec; i++) {
+    for (uint32_t i=0; i<smp_per_rec; i++) {
       if (val_min  > out[i]) {
          //std::cout<< "wl[" << i << "] = " << w1[i]<< std::endl;
         val_min = out[i];
@@ -1177,26 +1173,23 @@ template<class A> double CFD(const A* wave, double* out, double frac, uint32_t d
   //    std::cout<< t << " t del max " << std::endl;
   //    std::cout<< " w1[" << i << "] = " << w1[i] << std::endl;    
     }
-    while( (out[t] < 0.) && (t > delay) )  {
+    while( (out[t] < 0.) && (t>delay) )  {
       trigger = 0.;
       if(out[t+1] == out[t]) {
         trigger = 0.5*(t + (t+1));
         //std::cout<< "trigger primo caso:  " << trigger  <<std::endl;  
           }
       else {
-        trigger= t - (t + 1 - t)* out[t]/ (out[t + 1] - out [t]);            
+        trigger= t - ( t+1 -t )* out[t]/ (out[t+1] - out [t]);            
          // trigger = linear_interpolation (t-1, t, w1[t-1], w1[t], w1[t+1]); }
         }
       t = t-1;                 
     }
     }
 
-  //std::cout<< "trigger:  " << trigger  <<std::endl;
+//  std::cout<< "trigger:  " << trigger  <<std::endl;
   return trigger;
-  //std::cout << "-------------------------------------------------------Next----------------------------------------------------------" << std::endl;
 }
-
-
 
 // 
 // 

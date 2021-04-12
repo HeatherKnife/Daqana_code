@@ -1,5 +1,8 @@
 #!/bin/bash
 
-rm -rf build/
+sudo rm -rf build
 mkdir build
-cp compile.sh build/
+cp compile.sh build
+cd build/
+chmod +x compile.sh
+./compile.sh

@@ -6,9 +6,9 @@
 
 #IncludeRegexTransform: 
 
-/home/ana/Programs/Daqana_Code/daqana_v6f4/RootFileManager.cc
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/RootFileManager.cc
 RootFileManager.hh
-/home/ana/Programs/Daqana_Code/daqana_v6f4/RootFileManager.hh
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/RootFileManager.hh
 TDirectory.h
 -
 TFile.h
@@ -22,7 +22,7 @@ TTree.h
 stdexcept
 -
 
-/home/ana/Programs/Daqana_Code/daqana_v6f4/RootFileManager.hh
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/RootFileManager.hh
 Rtypes.h
 -
 map
@@ -30,7 +30,7 @@ map
 TString.h
 -
 
-/home/ana/Programs/Daqana_Code/daqana_v6f4/daqana_v6f4.cc
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/daqana_v6f4_1.cc
 cassert
 -
 cmath
@@ -64,9 +64,13 @@ vector
 snappy.h
 -
 RootFileManager.hh
-/home/ana/Programs/Daqana_Code/daqana_v6f4/RootFileManager.hh
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/RootFileManager.hh
+algorithm
+-
+iterator
+-
 
-/home/ana/Programs/Daqana_Code/daqana_v6f4/snappy-stubs-public.h
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/snappy-stubs-public.h
 stdint.h
 -
 stddef.h
@@ -74,7 +78,7 @@ stddef.h
 string
 -
 
-/home/ana/Programs/Daqana_Code/daqana_v6f4/snappy.h
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/snappy.h
 stddef.h
 -
 stdint.h
@@ -82,7 +86,7 @@ stdint.h
 string
 -
 snappy-stubs-public.h
-/home/ana/Programs/Daqana_Code/daqana_v6f4/snappy-stubs-public.h
+/home/ana/Programs/Daqana_Code/daqana_v6f4_1/snappy-stubs-public.h
 
 /home/ana/root/include/Bytes.h
 Rtypes.h

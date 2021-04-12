@@ -235,7 +235,7 @@ LIBRARY_OUTPUT_PATH:PATH=
 Project_BINARY_DIR:STATIC=/home/ana/Programs/Daqana_Code/build
 
 //Value Computed by CMake
-Project_SOURCE_DIR:STATIC=/home/ana/Programs/Daqana_Code/daqana_v6f4
+Project_SOURCE_DIR:STATIC=/home/ana/Programs/Daqana_Code/daqana_v6f4_1
 
 //Path to a library.
 ROOT_Core_LIBRARY:FILEPATH=/home/ana/root/lib/libCore.so
@@ -420,7 +420,7 @@ CMAKE_GENERATOR_PLATFORM:INTERNAL=
 CMAKE_GENERATOR_TOOLSET:INTERNAL=
 //Source directory with the top level CMakeLists.txt file for this
 // project
-CMAKE_HOME_DIRECTORY:INTERNAL=/home/ana/Programs/Daqana_Code/daqana_v6f4
+CMAKE_HOME_DIRECTORY:INTERNAL=/home/ana/Programs/Daqana_Code/daqana_v6f4_1
 //Install .so files without execute permission.
 CMAKE_INSTALL_SO_NO_EXE:INTERNAL=1
 //ADVANCED property for variable: CMAKE_LINKER

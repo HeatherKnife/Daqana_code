@@ -6,5 +6,5 @@ CXX_FLAGS =  -std=c++11 -pipe -fsigned-char -pthread
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/ana/root/include -I/home/ana/Programs/Daqana_Code/daqana_v6f4/. 
+CXX_INCLUDES = -I/home/ana/root/include -I/home/ana/Programs/Daqana_Code/daqana_v6f4_1/. 
 

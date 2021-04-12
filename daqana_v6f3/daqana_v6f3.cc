@@ -209,6 +209,7 @@ bool    get_active_ch( uint8_t ch ) { return active_ch & ch_mask[ch]; }
 bool    get_active_tr( uint8_t ch ) { return active_tr & ch_mask[ch]; }
 template<class A> double baseline( const A* );
 template<class A> double baseline( const A*, uint32_t, uint32_t );
+template<class A> double baseline_correction( const A*, double*, uint32_t, uint32_t );
 template<class A> double baseline_var( const A*, double );
 template<class A> double check_pileup( const A*, double, std::vector< std::pair<double,double> >&, int32_t polarity );
 template<class A> double get_fwhm( const A*, uint32_t, double );
@@ -230,7 +231,7 @@ double linear_interpolation( double, double, double, double, double );
 double quadratic_extremum( double, double, double, double& );
 
 // void    handle_record( uint32_t, int16_t**, double**, double** );
-void    handle_record( uint32_t, int16_t**, double**, double**, double ** ); // DT 2019/10/25. To compare two ways of doing CFD.  
+void    handle_record( uint32_t, int16_t**, double**, double**, double **, double** ); // DT 2019/10/25. To compare two ways of doing CFD.  
 
 template<class A> void store(    const A*, const TString );
                   void store(    const fftw_complex*, const TString );
@@ -302,6 +303,8 @@ int main(int argc, char** argv)
 //  double* bipolar[4]; // DT 2019/10/25
   double* bipolar_raw[4]; // DT 2019/10/25 To compare two ways of doing CFD.
   double* bipolar_smooth[4];  // DT 2019/10/25 To compare two ways of doing CFD.
+  double* corrected_smooth[4];
+
   h_ts     = rm->NewInt64( h_dtree, "Timestamp" );
   h_pileup = rm->NewFloat( h_dtree, "Pileup" );
   h_dist   = rm->NewFloat( h_dtree, "PileupDistance" );
@@ -321,6 +324,7 @@ int main(int argc, char** argv)
 //    bipolar[ch]    = new double[smp_per_rec]; 
       bipolar_raw[ch]    = new double[smp_per_rec];  // DT 2019/10/25. To compare two ways of doing CFD.
       bipolar_smooth[ch]    = new double[smp_per_rec];  // DT 2019/10/25. To compare two ways of doing CFD.
+      corrected_smooth[ch]    = new double[smp_per_rec]; 
 
       h_time[ch]    = rm->NewFloat( h_dtree, "Time_"         + ch_name[ch] );
 //      h_time_cfd[ch]    = rm->NewFloat( h_dtree, "Time_CFD_"         + ch_name[ch] );
@@ -385,7 +389,7 @@ int main(int argc, char** argv)
           /* Handle everything that concerns only this record */
           try{
 //            handle_record(ch,raw,smooth,bipolar);
-  handle_record(ch,raw,smooth,bipolar_raw,bipolar_smooth);// DT 2019/10/25. To compare two ways of doing CFD.  
+  handle_record(ch,raw,smooth,bipolar_raw,bipolar_smooth, corrected_smooth);// DT 2019/10/25. To compare two ways of doing CFD.  
         }
           catch( const char* e )
           {
@@ -417,6 +421,7 @@ int main(int argc, char** argv)
            //   store( bipolar[ch], "bipolar_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_raw[ch], "bipolar_raw_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_smooth[ch], "bipolar_smooth_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
+              store( corrected_smooth[ch], "corrected_smooth"+name );
             }
           ++n_stored;
         }
@@ -431,7 +436,7 @@ int main(int argc, char** argv)
 }
 
 //void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar)
-void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar_raw, double** bipolar_smooth) // DT 2019/10/25. To compare two ways of doing CFD.  
+void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipolar_raw, double** bipolar_smooth, double** corrected_smooth) // DT 2019/10/25. To compare two ways of doing CFD.  
 {
   RootFileManager* rm = RootFileManager::GetInstance();
 
@@ -486,6 +491,8 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
 //  double time_cfd;
   double time_cfd_raw; // DT 2019/10/25. To compare two ways of doing CFD.
   double time_cfd_smooth;  // DT 2019/10/25. To compare two ways of doing CFD.
+
+  baseline_correction( smooth[ch], corrected_smooth[ch], 0, 3*pre_tr_smp/10);
 
   static uint32_t pileup = 0;
 
@@ -657,6 +664,28 @@ template<class A> double baseline( const A* wave, uint32_t start_smp, uint32_t n
   bline /= n_smp;
   return bline;
 }
+
+
+
+template<class A> double baseline_correction( const A* wave, double* out, uint32_t start_smp, uint32_t n_smp )
+{
+  double bline = 0;
+  double end_smp = start_smp + n_smp;
+  for( uint32_t smp = 0; smp < n_smp; ++smp )
+  {
+    bline += wave[start_smp + smp];
+  } 
+
+  bline /= n_smp;
+
+  for ( uint32_t i = 0; i < smp_per_rec; ++i )
+  {
+    out[i] = wave[i] - bline;
+  }
+
+  return bline;
+}
+
 
 template<class A> double baseline_var( const A* wave, double bl )
 {

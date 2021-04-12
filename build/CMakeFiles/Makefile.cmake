@@ -10,7 +10,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.16.3/CMakeCCompiler.cmake"
   "CMakeFiles/3.16.3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.16.3/CMakeSystem.cmake"
-  "/home/ana/Programs/Daqana_Code/daqana_v6f4/CMakeLists.txt"
+  "/home/ana/Programs/Daqana_Code/daqana_v6f4_1/CMakeLists.txt"
   "/home/ana/root/cmake/ROOTConfig-targets-release.cmake"
   "/home/ana/root/cmake/ROOTConfig-targets.cmake"
   "/home/ana/root/cmake/ROOTConfig-version.cmake"
@@ -122,5 +122,5 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/daqana_v6f4.dir/DependInfo.cmake"
+  "CMakeFiles/daqana_v6f4_1.dir/DependInfo.cmake"
   )

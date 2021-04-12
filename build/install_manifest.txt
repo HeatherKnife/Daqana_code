@@ -1,1 +1,1 @@
-/home/ana/bin/daqana_v6f4
+/home/ana/bin/daqana_v6f4_1
