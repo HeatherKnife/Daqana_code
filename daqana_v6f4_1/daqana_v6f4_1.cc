@@ -423,7 +423,7 @@ int main(int argc, char** argv)
            //   store( bipolar[ch], "bipolar_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_raw[ch], "bipolar_raw_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
               store( bipolar_smooth[ch], "bipolar_smooth_"+name );// DT 2019/10/25. To compare two ways of doing CFD.  
-              store( corrected_smooth[ch], "corrected_smooth"+name );
+              store( corrected_smooth[ch], "corrected_smooth_"+name );
             }
           ++n_stored;
         }
@@ -494,12 +494,6 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
 
   offset_correction( smooth[ch], corrected_smooth[ch], 0, 3*pre_tr_smp/10);
 
-  auto itr = find( smooth[0], smooth[0] + smp_per_rec, max );
-
-//  if (itr != end(*smooth[0])) {
-  std::cout << "The time " << distance(smooth[0], itr) << std::endl;
-//  }
-
   static uint32_t pileup = 0;
 
 
@@ -507,9 +501,9 @@ void handle_record( uint32_t ch, int16_t** raw, double** smooth, double** bipola
 if(ch==0) // Silicon signals after PreAmp. Positive signals.
   {
 
-  val = get_max( smooth[ch], pos);
+  val = get_max( corrected_smooth[ch], pos);
 
-  time = left_threshold( smooth[ch], pos, bl_pre + 0.3 * (val - bl_pre) ); 
+  time = left_threshold( smooth[ch], pos, 0.3 * val ) ); 
 //  time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 20., -1800., 1);  // DT 2019/10/25; positive signal -> pol=1
   time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 20., -1300., 1); // DT 2019/10/25. To compare two ways of doing CFD.
   time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 20., -1300., 1);  // DT 2019/10/25. To compare two ways of doing CFD.
@@ -527,8 +521,8 @@ if(ch==0) // Silicon signals after PreAmp. Positive signals.
 // For MCP, use Raw signal for timing;
 else if(ch==1||ch==2||ch==3) // MCP signals. Negative signals.
   {
-  val = get_min( smooth[ch], pos);
-  time = left_threshold( smooth[ch], pos, bl_pre + 0.3 * (val - bl_pre) );
+  val = get_min( corrected_smooth[ch], pos);
+  time = left_threshold( corrected_smooth[ch], pos, 0.3 * val );
 //  time_cfd = CFD( smooth[ch], bipolar[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25; negative signal -> pol=0
   time_cfd_raw = CFD( raw[ch], bipolar_raw[ch], 0.3, 1.,  -1800., 0);   // DT 2019/10/25. To compare two ways of doing CFD.
   time_cfd_smooth = CFD( smooth[ch], bipolar_smooth[ch], 0.3, 1.,  -1800., 0);  // DT 2019/10/25. To compare two ways of doing CFD.
@@ -659,7 +653,7 @@ template<class A> double baseline( const A* wave, uint32_t start_smp, uint32_t n
 {
   double bline = 0;
   double end_smp = start_smp + n_smp;
-  for( uint32_t smp = 0; smp < n_smp; ++smp )
+  for( uint32_t smp = 0; smp < end_smp; ++smp )
   {
     bline += wave[start_smp + smp];
   //  std::cout << " bline " << bline << " wave " << wave[smp] << " smp "<< smp << " n_smp " << n_smp << std::endl; 
@@ -765,15 +759,14 @@ template<class A> double get_fwhm( const A* wave, uint32_t peak_pos, double zero
 template<class A> double left_threshold( const A* wave, uint32_t pos, double limit )
 {
   double value = wave[pos];
-
-  std::cout << "pos " << pos << " limit " << limit << std::endl;
+//  std::cout << "pos " << pos << " limit " << limit << std::endl;
 
   for( int32_t i = pos; --i; )
   {
-    std::cout << "value " << value << " limit " << limit << " wave[i] " << wave[i] << " i-1 " << i-1 << " i " << i << " i+1 " << i+1 << wave[i+1] << std::endl;
+//    std::cout << "value " << value << " limit " << limit << " wave[i] " << wave[i] << " i-1 " << i-1 << " i " << i << " i+1 " << i+1 << wave[i+1] << std::endl;
     if( ( value > limit && wave[i] < limit ) || ( value < limit && wave[i] > limit ) )
     {
-      std::cout << "linear_interpolation " << linear_interpolation( i, i+1, wave[i], wave[i+1], limit ) << std::endl;
+//      std::cout << "linear_interpolation " << linear_interpolation( i, i+1, wave[i], wave[i+1], limit ) << std::endl;
       return linear_interpolation( i, i+1, wave[i], wave[i+1], limit );
     }
   }
